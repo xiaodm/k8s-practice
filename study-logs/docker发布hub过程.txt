@@ -1,0 +1,5 @@
+  622  docker login
+  623  docker tag xiaodm.local/appeal-service:v1.0 deexiaoxdm/appeal-service:v1.0
+  624  docker images
+  625  docker push deexiaoxdm/appeal-service:v1.0
+  626  docker pull deexiaoxdm/appeal-service

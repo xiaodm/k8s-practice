@@ -1,0 +1,17 @@
+kubectl get pods --namespace=ingress-nginx
+Output:
+
+NAME                                        READY     STATUS    RESTARTS   AGE
+nginx-ingress-controller-1038678203-x2bjb   1/1       Running   0          2h
+Attach to its bash:
+
+kubectl exec -it nginx-ingress-controller-1038678203-x2bjb bash --namespace=ingress-nginx
+Then, open /etc/nginx/nginx.conf and you will see that the paths /tea and /coffee have been configured there:
+
+server {
+    server_name cafe.example.com ;
+...    
+location /tea
+...
+location /coffee 
+...

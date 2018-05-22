@@ -1,0 +1,14 @@
+1、安装完rancher、k8s节点1后，再安装node2时，报错“cannot find ‘kubelet’ container”
+===> 查询资料后，发现是由于重拷贝基础虚拟机后，没有修改hostname导致，即节点都是localhost无法注册到集群
+
+2. 节点注册安装过程中出现：KubeletNotReady runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:docker: network plugin is not ready: cni config uninitialized
+
+ ===> 不用处理，等待一会就好了。
+
+
+
+3. 在非rancher节点安装k8s工作节点，选择etcd、controller、worker执行命令后：
+Response code: [403], response body: {"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"forbidden: User \"system:anonymous\" cannot get path \"/healthz\"","reason":"Forbidden","details":{},"code":403
+
+====> 应该是使用了docker stop $(docker ps -a -q)  和   docker rm $(docker ps -a -q)删除所有容器后，rancher和k8s还有残留文件，会影响后续重装
+sudo rm -rf /var/lib/etcd /etc/kubernetes/ssl /etc/cni /opt/cni /var/lib/cni /var/run/flannel /etc/kubernetes/.tmp/

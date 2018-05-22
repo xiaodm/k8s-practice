@@ -1,0 +1,49 @@
+1. 使用deployment部署服务时，replicas: 3 ；apply之后，总是只有1个成功，另外2个pull image失败， imagePullPolicy: IfNotPresent(默认也是这个)也无效，检查日志，发现成功的那个是从本地获取，但后面这2个副本总是去网上pull。 
+理论上应该本地创建spring boot 项目，使用docker build后就应该是本地镜像了，不管几个副本，应该都是从本地获取才对。
+
+==> 暂时解决办法是，把本地镜像推送到hub上了。   (一般使用本地私有镜像后，应该也不存在问题，本机环境暂没搭建)
+经过再次排查，发现其实是因为有2个Node，spring boot是在其中一个node中build的，所以image只存在于这个node，deployment时，当前node存在image所以ok，另外的节点不存在所以去下载。
+（是在不想推送镜像仓库的话，就在2个Node中都build image就可以了。但得保证两边的镜像版本完全一致）
+
+
+2. 将服务使用service暴露端口后，虚拟机里面curl 192.168.3.162:8713/appeals能获取到数据 。  
+
+但在虚拟机外面查询不到 （之前使用的测试程序nginx是可以的）。。 貌似有时候又可以。。。  
+==>  似乎与第3个是同一个问题，解决3后，2问题就没有了
+
+
+3. 重启虚拟机后发现，ping 其它 Node 上的 Pod IP 失败。。  
+即kubectl get pods  -o wide|grep nginx-ds执行后两个Pod的IP
+
+==>  解决办法
+docker 从 1.13 版本开始，可能将 iptables FORWARD chain的默认策略设置为DROP，从而导致 ping 其它 Node 上的 Pod IP 失败，遇到这种情况时，需要手动设置策略为 ACCEPT：
+
+$ sudo iptables -P FORWARD ACCEPT
+$
+
+
+（经Centos7里面测试，发现重启后，以下方式似乎无效，还是手动执行了上面的命令）
+并且把以下命令写入/etc/rc.local文件中，防止节点重启iptables FORWARD chain的默认策略又还原为DROP
+
+sleep 60 && /sbin/iptables -P FORWARD ACCEPT
+
+
+
+4. 实践ingress时，部署成功后路由只能定向到serviceIP：Port， 后面的路由不能定向到。
+
+nginx-ingress-controller开始使用的这个包：siriuszg/nginx-ingress-controller
+换成happyredstar/nginx-ingress-controller也一样的问题 ....
+==>  解决办法  
+	折腾很久好，才发现。。 原来是路由解析的问题，和nginx不太一样呢。。看日志打印我一直以为是仅导向了serviceIP：Port，实际是导向了serviceIP：Port/url-path。也就是如果请求http://cad.test.com/ingress-appeal/appeals/ 导向的也是http://serviceIP:Port/ingress-appeal/appeals/中间其实多了ingress-appeal（即path定义名称本身）。。。后来分析nginx-ingress-controller日志仔细对比才发现。
+	
+	目前是修改了path定义，与实际路由一致解决。 
+	
+	（看官方的解释，正常的处理方式应该是：
+	annotations:
+    ingress.kubernetes.io/rewrite-target: /  
+		但我尝试了但不行。。。版本问题？
+	）
+	 
+	更灵活的解决方案应该还是metadata内处理：  
+	  annotations:
+		nginx.org/rewrites: "serviceName=version1-service rewrite=/xxx/;serviceName=version2-service rewrite=/xxx/"
