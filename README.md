@@ -1,2 +1,2 @@
 # k8s-practice
-kubernetes practice logs
+kubernetes practice logs 
